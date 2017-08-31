@@ -60,12 +60,13 @@ LOG_STEP = 10 # Default=10
 SAMPLE_STEP = 500 # Default=500
 # _______________________________________________________________________________________________________________________
 
+
 # 1 - LOADING THE DATA
 print("-- Part 1 -> DATA LOADING -")
 
 class ImageFolder(data.Dataset):
 
-    def __inti__(self, root, transform=None):
+    def __init__(self, root, transform=None):
         """Initializes images paths and preprocessing module."""
         self.image_paths = list(map(lambda x: os.path.join(root, x), os.listdir(root)))
         self.transform = transform
@@ -120,7 +121,7 @@ def deconv(c_in, c_out, k_size, stride=2, pad=1, bn=True):
 
 class Generator(nn.Module):
     """Generator containig 7 deconvolutional layers"""
-    def _init__(self, z_dim=256, image_size=128, conv_dim=64):
+    def __init__(self, z_dim=256, image_size=128, conv_dim=64):
         super(Generator, self).__init__()
         self.fc = deconv(z_dim, conv_dim*8, int(image_size/16), 1, 0, bn=False)
         self.deconv1 = deconv(conv_dim * 8, conv_dim * 4, 4)
@@ -171,6 +172,25 @@ print('')
 
 # 3 - SOLVER
 print("-- Part 3 -> SOLVER -")
+
+#_______________________________________
+# Useful functions
+
+import time
+import math
+
+def asMinutes(s):
+    m = math.floor(s/60)
+    s -= m * 60
+    return '%dm %ds' % (m, s)
+
+def timeSince(since, percent):
+    now = time.time()
+    s = now - since
+    es = s / percent
+    rs = es - s
+    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
+#_________________________________________
 
 class Solver(object):
     def __init__(self, data_loader):
@@ -233,6 +253,7 @@ class Solver(object):
         fixed_noise = self.to_variable(torch.randn(self.batch_size, self.z_dim))
         total_step = len(self.data_loader)
         print("Training...")
+        start = time.time()
         for epoch in range(self.num_epochs):
             for i, images in enumerate(self.data_loader):
 
@@ -271,8 +292,8 @@ class Solver(object):
 
                 # PRINT INFO:
                 if (i+1) % self.log_step == 0:
-                    print('Epoch [%d/%d], Step[%d/%d], d_real_loss: %.4f, d_fake_loss: %.4f, g_loss: %.4f' %
-                          (epoch+1, self.num_epochs, i+1, total_step, real_loss.data[0], fake_loss.data[0], g_loss.data[0]))
+                    print('(%s) Epoch [%d/%d], Step[%d/%d], d_real_loss: %.4f, d_fake_loss: %.4f, g_loss: %.4f' %
+                          (timeSince(start, ((epoch+1.0)*(total_step+1) +i+1 )/((self.num_epochs+1.0)*(total_step+1))), epoch+1, self.num_epochs, i+1, total_step, real_loss.data[0], fake_loss.data[0], g_loss.data[0]))
 
                 # SAVE SAMPLED IMAGES:
                 if (i+1) % self.sample_step == 0:
@@ -314,10 +335,13 @@ print("-- Part 4 -> WORK START -")
 
 cudnn.benchmark = True
 
+print("Loading DATA..")
 data_loader = get_loader(IMAGE_PATH, IMAGE_SIZE, BATCH_SIZE, NUM_WORKERS)
 
+print("Loading Solver..")
 solver = Solver(data_loader=data_loader)
 
+print("Creating Dirs if not exist..")
 # Create directories if not exist
 if not os.path.exists(MODEL_PATH):
     os.makedirs(MODEL_PATH)
